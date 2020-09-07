@@ -1,0 +1,852 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.web.blog.dao.PostDao">
+
+	<select id="searchPost"
+		resultType="com.web.blog.model.post.PostResponse">
+		SELECT re1.userrating, re2.postrating, re2.ranking,re2.score, re2.kind, re2.likecount, re2.dislikecount, re2.tags, re2.userno, re2.uid, re2.postno, re2.title, re2.subtitle,  re2.content, re2.profilename, re2.thumbnail ,DATE_FORMAT(create_date,'%Y-%m-%d') AS create_date FROM
+		(SELECT (case when     <![CDATA[ userrank <= 5 AND userscore >= 60  then 'http://i3b208.p.ssafy.io:8080/blog/tier/challenger.png' 
+         when userrank <= 10 AND userscore >= 50 then 'http://i3b208.p.ssafy.io:8080/blog/tier/master.png'
+         when userrank <= 15 AND userscore >= 40 then 'http://i3b208.p.ssafy.io:8080/blog/tier/diamond.png'
+         when userrank <= 20 AND userscore >= 30 then 'http://i3b208.p.ssafy.io:8080/blog/tier/platinum.png'
+         when userrank <= 25 AND userscore >= 20 then 'http://i3b208.p.ssafy.io:8080/blog/tier/gold.png'
+         when userrank <= 30 AND userscore >= 10 then 'http://i3b208.p.ssafy.io:8080/blog/tier/silver.png'
+          ELSE 'http://i3b208.p.ssafy.io:8080/blog/tier/bronze.png' END]]>
+		) AS userrating , re1.userscore, re1.userno FROM
+		(SELECT (rank()
+		over(ORDER BY userscore DESC)) as userrank, sum(tt3.likecount
+		-
+		tt3.dislikecount) AS userscore, tt3.userno FROM (SELECT
+		ifnull(likecount,0) AS likecount, temp3.* FROM (SELECT
+		count(user.userno) AS likecount , postlike.postno
+		FROM user, postlike
+		WHERE user.userno = postlike.userno GROUP BY
+		postno, kind HAVING kind
+		=1) AS liketable
+		RIGHT JOIN (SELECT ifnull(disliketable.dislikecount,0)
+		AS dislikecount,
+		temp2.* FROM (SELECT count(user.userno) AS
+		dislikecount ,
+		postlike.postno,
+		postlike.kind FROM user, postlike WHERE
+		user.userno = postlike.userno
+		GROUP BY postno, kind HAVING kind =0) AS
+		disliketable
+		RIGHT JOIN (SELECT user.userno, postreg.postno FROM user,
+		postreg WHERE
+		user.userno = postreg.userno ) AS temp2
+		ON
+		disliketable.postno = temp2.postno) AS temp3
+		ON liketable.postno =
+		temp3.postno ) AS tt3
+		GROUP BY userno) AS re1) AS re1,
+		(SELECT (case
+		when    <![CDATA[ ranking <= 5  AND  score >= 30  then 'http://i3b208.p.ssafy.io:8080/blog/tier/challenger.png' 
+         when ranking <= 10 AND score >= 25 then 'http://i3b208.p.ssafy.io:8080/blog/tier/master.png'
+         when  ranking <= 15 AND score >= 20 then 'http://i3b208.p.ssafy.io:8080/blog/tier/diamond.png'
+         when  ranking <= 20 AND score >= 15 then 'http://i3b208.p.ssafy.io:8080/blog/tier/platinum.png'
+         when  ranking <= 25 AND score >= 10 then 'http://i3b208.p.ssafy.io:8080/blog/tier/gold.png'
+         when ranking <= 30 AND score >= 5 then 'http://i3b208.p.ssafy.io:8080/blog/tier/silver.png'
+          ELSE 'http://i3b208.p.ssafy.io:8080/blog/tier/bronze.png' END ]]>
+		)AS postrating , result.*
+		FROM (SELECT (rank() over(ORDER BY score
+		DESC)) AS ranking , likecount -
+		dislikecount as score,
+		ifnull(tt1.kind,-1) AS kind , tt2.* FROM
+		(SELECT * FROM postlike WHERE
+		userno = #{userno}) AS tt1 RIGHT JOIN
+		(SELECT
+		ifnull(liketable.likecount, 0) AS likecount, temp3.* FROM
+		(SELECT
+		count(user.userno) AS likecount , postlike.postno
+		FROM user, postlike
+		WHERE user.userno = postlike.userno GROUP BY
+		postno, kind HAVING kind
+		=1) AS liketable
+		RIGHT JOIN (SELECT ifnull(disliketable.dislikecount,0)
+		AS dislikecount,
+		temp2.* FROM (SELECT count(user.userno) AS
+		dislikecount ,
+		postlike.postno,
+		postlike.kind FROM user, postlike WHERE
+		user.userno = postlike.userno
+		GROUP BY postno, kind HAVING kind =0) AS
+		disliketable
+		RIGHT JOIN (SELECT GROUP_CONCAT(tags.tag) AS tags, temp1.*
+		from tags right JOIN (SELECT * FROM postuser ) AS temp1
+		ON temp1.postno
+		= tags.postno GROUP BY postno) AS temp2
+		ON disliketable.postno =
+		temp2.postno) AS temp3
+		ON liketable.postno = temp3.postno ) AS tt2
+		on
+		tt1.postno = tt2.postno
+		ORDER BY score DESC) AS result) AS re2
+		WHERE
+		re1.userno = re2.userno
+		<if test="word != null">
+			AND (title LIKE concat('%',#{word},'%')
+			OR content LIKE
+			concat('%',#{word},'%'))
+		</if>
+		<if test="tags != null and tags.length > 0">
+			AND
+			<foreach item="tag" index="index" collection="tags" open="("
+				separator="AND" close=")">
+				tags LIKE concat('%',#{tag},'%')
+			</foreach>
+		</if>
+		ORDER BY score DESC LIMIT #{limit}, 9
+
+	</select>
+	<select id="searchTags" resultType="java.lang.String">
+		SELECT tag
+		FROM tags
+		WHERE tag
+		LIKE CONCAT('%',#{word},'%')
+		GROUP BY tag
+	</select>
+	
+	<select id="getTemplate" resultType="java.lang.String">
+		SELECT template
+		FROM templates
+		WHERE templateno = #{templateno}
+	</select>
+
+	<select id="getTotalPost"
+		resultType="com.web.blog.model.post.PostResponse">
+		SELECT re1.userrating, re2.* FROM
+		(SELECT (case when     <![CDATA[ userrank <= 5 AND userscore >= 60  then 'http://i3b208.p.ssafy.io:8080/blog/tier/challenger.png' 
+         when userrank <= 10 AND userscore >= 50 then 'http://i3b208.p.ssafy.io:8080/blog/tier/master.png'
+         when userrank <= 15 AND userscore >= 40 then 'http://i3b208.p.ssafy.io:8080/blog/tier/diamond.png'
+         when userrank <= 20 AND userscore >= 30 then 'http://i3b208.p.ssafy.io:8080/blog/tier/platinum.png'
+         when userrank <= 25 AND userscore >= 20 then 'http://i3b208.p.ssafy.io:8080/blog/tier/gold.png'
+         when userrank <= 30 AND userscore >= 10 then 'http://i3b208.p.ssafy.io:8080/blog/tier/silver.png'
+          ELSE 'http://i3b208.p.ssafy.io:8080/blog/tier/bronze.png' END]]>
+		) AS userrating , re1.userscore, re1.userno FROM
+		(SELECT (rank()
+		over(ORDER BY userscore DESC)) as userrank, sum(tt3.likecount
+		-
+		tt3.dislikecount) AS userscore, tt3.userno FROM (SELECT
+		ifnull(likecount,0) AS likecount, temp3.* FROM (SELECT
+		count(user.userno) AS likecount , postlike.postno
+		FROM user, postlike
+		WHERE user.userno = postlike.userno GROUP BY
+		postno, kind HAVING kind
+		=1) AS liketable
+		RIGHT JOIN (SELECT ifnull(disliketable.dislikecount,0)
+		AS dislikecount,
+		temp2.* FROM (SELECT count(user.userno) AS
+		dislikecount ,
+		postlike.postno,
+		postlike.kind FROM user, postlike WHERE
+		user.userno = postlike.userno
+		GROUP BY postno, kind HAVING kind =0) AS
+		disliketable
+		RIGHT JOIN (SELECT user.userno, postreg.postno FROM user,
+		postreg WHERE
+		user.userno = postreg.userno ) AS temp2
+		ON
+		disliketable.postno = temp2.postno) AS temp3
+		ON liketable.postno =
+		temp3.postno ) AS tt3
+		GROUP BY userno) AS re1) AS re1,
+		(SELECT (case
+
+		when    <![CDATA[ ranking <= 5  AND  score >= 30  then 'http://i3b208.p.ssafy.io:8080/blog/tier/challenger.png' 
+         when ranking <= 10 AND score >= 25 then 'http://i3b208.p.ssafy.io:8080/blog/tier/master.png'
+         when  ranking <= 15 AND score >= 20 then 'http://i3b208.p.ssafy.io:8080/blog/tier/diamond.png'
+         when  ranking <= 20 AND score >= 15 then 'http://i3b208.p.ssafy.io:8080/blog/tier/platinum.png'
+         when  ranking <= 25 AND score >= 10 then 'http://i3b208.p.ssafy.io:8080/blog/tier/gold.png'
+         when ranking <= 30 AND score >= 5 then 'http://i3b208.p.ssafy.io:8080/blog/tier/silver.png'
+          ELSE 'http://i3b208.p.ssafy.io:8080/blog/tier/bronze.png' END ]]>
+		)AS postrating , result.*
+		FROM (SELECT (rank() over(ORDER BY score
+		DESC)) AS ranking , likecount -
+		dislikecount as score,
+		ifnull(tt1.kind,-1) AS kind , tt2.* FROM
+		(SELECT * FROM postlike WHERE
+		userno = #{userno}) AS tt1 RIGHT JOIN
+		(SELECT
+		ifnull(liketable.likecount, 0) AS likecount, temp3.* FROM
+		(SELECT
+		count(user.userno) AS likecount , postlike.postno
+		FROM user, postlike
+		WHERE user.userno = postlike.userno GROUP BY
+		postno, kind HAVING kind
+		=1) AS liketable
+		RIGHT JOIN (SELECT ifnull(disliketable.dislikecount,0)
+		AS dislikecount,
+		temp2.* FROM (SELECT count(user.userno) AS
+		dislikecount ,
+		postlike.postno,
+		postlike.kind FROM user, postlike WHERE
+		user.userno = postlike.userno
+		GROUP BY postno, kind HAVING kind =0) AS
+		disliketable
+		RIGHT JOIN (SELECT GROUP_CONCAT(tags.tag) AS tags, temp1.*
+		from tags right JOIN (SELECT * FROM postuser ) AS temp1
+		ON temp1.postno
+		= tags.postno GROUP BY postno) AS temp2
+		ON disliketable.postno =
+		temp2.postno) AS temp3
+		ON liketable.postno = temp3.postno ) AS tt2
+		on
+		tt1.postno = tt2.postno
+		ORDER BY score DESC) AS result) AS re2
+		WHERE
+		re1.userno = re2.userno
+		LIMIT #{limit} , 9
+	</select>
+
+	<select id="getMyPostList"
+		resultType="com.web.blog.model.post.PostResponse">
+		SELECT re1.userrating, re2.* FROM
+		(SELECT (case when    <![CDATA[  userrank <= 5 AND userscore >= 60  then 'http://i3b208.p.ssafy.io:8080/blog/tier/challenger.png' 
+         when userrank <= 10 AND userscore >= 50 then 'http://i3b208.p.ssafy.io:8080/blog/tier/master.png'
+         when userrank <= 15 AND userscore >= 40 then 'http://i3b208.p.ssafy.io:8080/blog/tier/diamond.png'
+         when userrank <= 20 AND userscore >= 30 then 'http://i3b208.p.ssafy.io:8080/blog/tier/platinum.png'
+         when userrank <= 25 AND userscore >= 20 then 'http://i3b208.p.ssafy.io:8080/blog/tier/gold.png'
+         when userrank <= 30 AND userscore >= 10 then 'http://i3b208.p.ssafy.io:8080/blog/tier/silver.png'
+          ELSE 'http://i3b208.p.ssafy.io:8080/blog/tier/bronze.png' END  ]]>
+		) AS userrating , re1.userscore, re1.userno FROM
+		(SELECT (rank()
+		over(ORDER BY userscore DESC)) as userrank, sum(tt3.likecount
+		-
+		tt3.dislikecount) AS userscore, tt3.userno FROM (SELECT
+		ifnull(likecount,0) AS likecount, temp3.* FROM (SELECT
+		count(user.userno) AS likecount , postlike.postno
+		FROM user, postlike
+		WHERE user.userno = postlike.userno GROUP BY
+		postno, kind HAVING kind
+		=1) AS liketable
+		RIGHT JOIN (SELECT ifnull(disliketable.dislikecount,0)
+		AS dislikecount,
+		temp2.* FROM (SELECT count(user.userno) AS
+		dislikecount ,
+		postlike.postno,
+		postlike.kind FROM user, postlike WHERE
+		user.userno = postlike.userno
+		GROUP BY postno, kind HAVING kind =0) AS
+		disliketable
+		RIGHT JOIN (SELECT user.userno, postreg.postno FROM user,
+		postreg WHERE
+		user.userno = postreg.userno ) AS temp2
+		ON
+		disliketable.postno = temp2.postno) AS temp3
+		ON liketable.postno =
+		temp3.postno ) AS tt3
+		GROUP BY userno) AS re1) AS re1,
+		(SELECT (case
+		when     <![CDATA[ ranking <= 5  AND  score >= 30  then 'http://i3b208.p.ssafy.io:8080/blog/tier/challenger.png' 
+         when ranking <= 10 AND score >= 25 then 'http://i3b208.p.ssafy.io:8080/blog/tier/master.png'
+         when  ranking <= 15 AND score >= 20 then 'http://i3b208.p.ssafy.io:8080/blog/tier/diamond.png'
+         when  ranking <= 20 AND score >= 15 then 'http://i3b208.p.ssafy.io:8080/blog/tier/platinum.png'
+         when  ranking <= 25 AND score >= 10 then 'http://i3b208.p.ssafy.io:8080/blog/tier/gold.png'
+         when ranking <= 30 AND score >= 5 then 'http://i3b208.p.ssafy.io:8080/blog/tier/silver.png'
+          ELSE 'http://i3b208.p.ssafy.io:8080/blog/tier/bronze.png' END ]]>
+		)AS postrating , result.*
+		FROM (SELECT (rank() over(ORDER BY score
+		DESC)) AS ranking , likecount -
+		dislikecount as score,
+		ifnull(tt1.kind,-1) AS kind , tt2.* FROM
+		(SELECT * FROM postlike WHERE
+		userno = #{userno}) AS tt1 RIGHT JOIN
+		(SELECT
+		ifnull(liketable.likecount, 0) AS likecount, temp3.* FROM
+		(SELECT
+		count(user.userno) AS likecount , postlike.postno
+		FROM user, postlike
+		WHERE user.userno = postlike.userno GROUP BY
+		postno, kind HAVING kind
+		=1) AS liketable
+		RIGHT JOIN (SELECT ifnull(disliketable.dislikecount,0)
+		AS dislikecount,
+		temp2.* FROM (SELECT count(user.userno) AS
+		dislikecount ,
+		postlike.postno,
+		postlike.kind FROM user, postlike WHERE
+		user.userno = postlike.userno
+		GROUP BY postno, kind HAVING kind =0) AS
+		disliketable
+		RIGHT JOIN (SELECT GROUP_CONCAT(tags.tag) AS tags, temp1.*
+		from tags right JOIN (SELECT user.userno, user.uid,postreg.save, post.* FROM user,
+		postreg, post WHERE user.userno = #{userno} and user.userno =
+		postreg.userno AND postreg.postno = post.postno ) AS temp1
+		ON
+		temp1.postno = tags.postno GROUP BY postno) AS temp2
+		ON
+		disliketable.postno = temp2.postno) AS temp3
+		ON liketable.postno =
+		temp3.postno ) AS tt2
+		on tt1.postno = tt2.postno
+		ORDER BY score DESC) AS
+		result) AS re2
+		WHERE re1.userno = re2.userno
+		LIMIT #{limit}, 9
+	</select>
+
+	<select id="getTopLikePostList"
+		resultType="com.web.blog.model.post.PostResponse">
+		SELECT re1.userrating, re2.* FROM
+		(SELECT (case when     <![CDATA[ userrank <= 5 AND userscore >= 60  then 'http://i3b208.p.ssafy.io:8080/blog/tier/challenger.png' 
+         when userrank <= 10 AND userscore >= 50 then 'http://i3b208.p.ssafy.io:8080/blog/tier/master.png'
+         when userrank <= 15 AND userscore >= 40 then 'http://i3b208.p.ssafy.io:8080/blog/tier/diamond.png'
+         when userrank <= 20 AND userscore >= 30 then 'http://i3b208.p.ssafy.io:8080/blog/tier/platinum.png'
+         when userrank <= 25 AND userscore >= 20 then 'http://i3b208.p.ssafy.io:8080/blog/tier/gold.png'
+         when userrank <= 30 AND userscore >= 10 then 'http://i3b208.p.ssafy.io:8080/blog/tier/silver.png'
+          ELSE 'http://i3b208.p.ssafy.io:8080/blog/tier/bronze.png' END]]>
+		) AS userrating , re1.userscore, re1.userno FROM
+		(SELECT (rank()
+		over(ORDER BY userscore DESC)) as userrank, sum(tt3.likecount
+		-
+		tt3.dislikecount) AS userscore, tt3.userno FROM (SELECT
+		ifnull(likecount,0) AS likecount, temp3.* FROM (SELECT
+		count(user.userno) AS likecount , postlike.postno
+		FROM user, postlike
+		WHERE user.userno = postlike.userno GROUP BY
+		postno, kind HAVING kind
+		=1) AS liketable
+		RIGHT JOIN (SELECT ifnull(disliketable.dislikecount,0)
+		AS dislikecount,
+		temp2.* FROM (SELECT count(user.userno) AS
+		dislikecount ,
+		postlike.postno,
+		postlike.kind FROM user, postlike WHERE
+		user.userno = postlike.userno
+		GROUP BY postno, kind HAVING kind =0) AS
+		disliketable
+		RIGHT JOIN (SELECT user.userno, postreg.postno FROM user,
+		postreg WHERE
+		user.userno = postreg.userno ) AS temp2
+		ON
+		disliketable.postno = temp2.postno) AS temp3
+		ON liketable.postno =
+		temp3.postno ) AS tt3
+		GROUP BY userno) AS re1) AS re1,
+		(SELECT (case
+
+		when    <![CDATA[ ranking <= 5  AND  score >= 30  then 'http://i3b208.p.ssafy.io:8080/blog/tier/challenger.png' 
+         when ranking <= 10 AND score >= 25 then 'http://i3b208.p.ssafy.io:8080/blog/tier/master.png'
+         when  ranking <= 15 AND score >= 20 then 'http://i3b208.p.ssafy.io:8080/blog/tier/diamond.png'
+         when  ranking <= 20 AND score >= 15 then 'http://i3b208.p.ssafy.io:8080/blog/tier/platinum.png'
+         when  ranking <= 25 AND score >= 10 then 'http://i3b208.p.ssafy.io:8080/blog/tier/gold.png'
+         when ranking <= 30 AND score >= 5 then 'http://i3b208.p.ssafy.io:8080/blog/tier/silver.png'
+          ELSE 'http://i3b208.p.ssafy.io:8080/blog/tier/bronze.png' END ]]>
+		)AS postrating , result.*
+		FROM (SELECT (rank() over(ORDER BY score
+		DESC)) AS ranking , likecount -
+		dislikecount as score,
+		ifnull(tt1.kind,-1) AS kind , tt2.* FROM
+		(SELECT * FROM postlike WHERE
+		userno = #{userno}) AS tt1 RIGHT JOIN
+		(SELECT
+		ifnull(liketable.likecount, 0) AS likecount, temp3.* FROM
+		(SELECT
+		count(user.userno) AS likecount , postlike.postno
+		FROM user, postlike
+		WHERE user.userno = postlike.userno GROUP BY
+		postno, kind HAVING kind
+		=1) AS liketable
+		RIGHT JOIN (SELECT ifnull(disliketable.dislikecount,0)
+		AS dislikecount,
+		temp2.* FROM (SELECT count(user.userno) AS
+		dislikecount ,
+		postlike.postno,
+		postlike.kind FROM user, postlike WHERE
+		user.userno = postlike.userno
+		GROUP BY postno, kind HAVING kind =0) AS
+		disliketable
+		RIGHT JOIN (SELECT GROUP_CONCAT(tags.tag) AS tags, temp1.*
+		from tags right JOIN (SELECT * FROM postuser ) AS temp1
+		ON temp1.postno
+		= tags.postno GROUP BY postno) AS temp2
+		ON disliketable.postno =
+		temp2.postno) AS temp3
+		ON liketable.postno = temp3.postno ) AS tt2
+		on
+		tt1.postno = tt2.postno
+		ORDER BY score DESC) AS result) AS re2
+		WHERE
+		re1.userno = re2.userno
+		LIMIT 5
+	</select>
+
+	<select id="getUserPostList"
+		resultType="com.web.blog.model.post.PostResponse">
+		SELECT re1.userrating, re2.* FROM
+		(SELECT (case when   <![CDATA[  userrank <= 5 AND userscore >= 60  then 'http://i3b208.p.ssafy.io:8080/blog/tier/challenger.png' 
+         when userrank <= 10 AND userscore >= 50 then 'http://i3b208.p.ssafy.io:8080/blog/tier/master.png'
+         when userrank <= 15 AND userscore >= 40 then 'http://i3b208.p.ssafy.io:8080/blog/tier/diamond.png'
+         when userrank <= 20 AND userscore >= 30 then 'http://i3b208.p.ssafy.io:8080/blog/tier/platinum.png'
+         when userrank <= 25 AND userscore >= 20 then 'http://i3b208.p.ssafy.io:8080/blog/tier/gold.png'
+         when userrank <= 30 AND userscore >= 10 then 'http://i3b208.p.ssafy.io:8080/blog/tier/silver.png'
+          ELSE 'http://i3b208.p.ssafy.io:8080/blog/tier/bronze.png' END   ]]>
+		) AS userrating , re1.userscore, re1.userno FROM
+		(SELECT (rank()
+		over(ORDER BY userscore DESC)) as userrank, sum(tt3.likecount
+		-
+		tt3.dislikecount) AS userscore, tt3.userno FROM (SELECT
+		ifnull(likecount,0) AS likecount, temp3.* FROM (SELECT
+		count(user.userno) AS likecount , postlike.postno
+		FROM user, postlike
+		WHERE user.userno = postlike.userno GROUP BY
+		postno, kind HAVING kind
+		=1) AS liketable
+		RIGHT JOIN (SELECT ifnull(disliketable.dislikecount,0)
+		AS dislikecount,
+		temp2.* FROM (SELECT count(user.userno) AS
+		dislikecount ,
+		postlike.postno,
+		postlike.kind FROM user, postlike WHERE
+		user.userno = postlike.userno
+		GROUP BY postno, kind HAVING kind =0) AS
+		disliketable
+		RIGHT JOIN (SELECT user.userno, postreg.postno FROM user,
+		postreg WHERE
+		user.userno = postreg.userno ) AS temp2
+		ON
+		disliketable.postno = temp2.postno) AS temp3
+		ON liketable.postno =
+		temp3.postno ) AS tt3
+		GROUP BY userno) AS re1) AS re1,
+		(SELECT (case
+		when   <![CDATA[ ranking <= 5  AND  score >= 30  then 'http://i3b208.p.ssafy.io:8080/blog/tier/challenger.png' 
+         when ranking <= 10 AND score >= 25 then 'http://i3b208.p.ssafy.io:8080/blog/tier/master.png'
+         when  ranking <= 15 AND score >= 20 then 'http://i3b208.p.ssafy.io:8080/blog/tier/diamond.png'
+         when  ranking <= 20 AND score >= 15 then 'http://i3b208.p.ssafy.io:8080/blog/tier/platinum.png'
+         when  ranking <= 25 AND score >= 10 then 'http://i3b208.p.ssafy.io:8080/blog/tier/gold.png'
+         when ranking <= 30 AND score >= 5 then 'http://i3b208.p.ssafy.io:8080/blog/tier/silver.png'
+          ELSE 'http://i3b208.p.ssafy.io:8080/blog/tier/bronze.png' END  ]]>
+		)AS postrating , result.*
+		FROM (SELECT (rank() over(ORDER BY score
+		DESC)) AS ranking , likecount -
+		dislikecount as score,
+		ifnull(tt1.kind,-1) AS kind , tt2.* FROM
+		(SELECT * FROM postlike WHERE
+		userno = #{userno}) AS tt1 RIGHT JOIN
+		(SELECT
+		ifnull(liketable.likecount, 0) AS likecount, temp3.* FROM
+		(SELECT
+		count(user.userno) AS likecount , postlike.postno
+		FROM user, postlike
+		WHERE user.userno = postlike.userno GROUP BY
+		postno, kind HAVING kind
+		=1) AS liketable
+		RIGHT JOIN (SELECT ifnull(disliketable.dislikecount,0)
+		AS dislikecount,
+		temp2.* FROM (SELECT count(user.userno) AS
+		dislikecount ,
+		postlike.postno,
+		postlike.kind FROM user, postlike WHERE
+		user.userno = postlike.userno
+		GROUP BY postno, kind HAVING kind =0) AS
+		disliketable
+		RIGHT JOIN (SELECT GROUP_CONCAT(tags.tag) AS tags, temp1.*
+		from tags right JOIN (SELECT user.userno, user.uid, user.profilename ,
+		post.* FROM user, postreg, post WHERE user.uid = #{bloguser} AND
+		postreg.save = 1 and user.userno = postreg.userno AND postreg.postno =
+		post.postno ) AS temp1
+		ON temp1.postno = tags.postno GROUP BY postno)
+		AS temp2
+		ON disliketable.postno = temp2.postno) AS temp3
+		ON
+		liketable.postno = temp3.postno ) AS tt2
+		on tt1.postno = tt2.postno
+		ORDER BY score DESC) AS result) AS re2
+		WHERE re1.userno = re2.userno
+
+		LIMIT #{limit}, 9
+	</select>
+
+	<select id="getPostByTag"
+		resultType="com.web.blog.model.post.PostResponse">
+		SELECT GROUP_CONCAT(tags.tag) AS tags , tt1.* FROM tags,
+		(SELECT post.postno, user.uid, user.profilename, post.title,
+		post.subtitle , date_format(post.create_date, '%Y-%m-%d') AS
+		create_date
+		FROM user, postreg, post
+		WHERE user.userno = postreg.userno
+		AND postreg.save = 1 AND postreg.postno
+		= post.postno) AS tt1
+		WHERE
+		tags.postno = tt1.postno
+		GROUP BY tt1.postno
+		HAVING tags like
+		CONCAT('%',#{tag},'%')
+	</select>
+
+
+	<select id="getPostList"
+		resultType="com.web.blog.model.post.PostResponse">
+		SELECT re1.userrating, re2.* FROM
+		(SELECT (case when     <![CDATA[ userrank <= 5 AND userscore >= 30  then 'http://i3b208.p.ssafy.io:8080/blog/tier/challenger.png' 
+         when userrank <= 10 AND userscore >= 25 then 'http://i3b208.p.ssafy.io:8080/blog/tier/master.png'
+         when userrank <= 15 AND userscore >= 20 then 'http://i3b208.p.ssafy.io:8080/blog/tier/diamond.png'
+         when userrank <= 20 AND userscore >= 15 then 'http://i3b208.p.ssafy.io:8080/blog/tier/platinum.png'
+         when userrank <= 25 AND userscore >= 10 then 'http://i3b208.p.ssafy.io:8080/blog/tier/gold.png'
+         when userrank <= 30 AND userscore >= 5 then 'http://i3b208.p.ssafy.io:8080/blog/tier/silver.png'
+          ELSE 'http://i3b208.p.ssafy.io:8080/blog/tier/bronze.png' END]]>
+		) AS userrating , re1.userscore, re1.userno FROM
+		(SELECT (rank()
+		over(ORDER BY userscore DESC)) as userrank, sum(tt3.likecount
+		-
+		tt3.dislikecount) AS userscore, tt3.userno FROM (SELECT
+		ifnull(likecount,0) AS likecount, temp3.* FROM (SELECT
+		count(user.userno) AS likecount , postlike.postno
+		FROM user, postlike
+		WHERE user.userno = postlike.userno GROUP BY
+		postno, kind HAVING kind
+		=1) AS liketable
+		RIGHT JOIN (SELECT ifnull(disliketable.dislikecount,0)
+		AS dislikecount,
+		temp2.* FROM (SELECT count(user.userno) AS
+		dislikecount ,
+		postlike.postno,
+		postlike.kind FROM user, postlike WHERE
+		user.userno = postlike.userno
+		GROUP BY postno, kind HAVING kind =0) AS
+		disliketable
+		RIGHT JOIN (SELECT user.userno, postreg.postno FROM user,
+		postreg WHERE
+		user.userno = postreg.userno ) AS temp2
+		ON
+		disliketable.postno = temp2.postno) AS temp3
+		ON liketable.postno =
+		temp3.postno ) AS tt3
+		GROUP BY userno) AS re1) AS re1,
+		(SELECT (case
+		when    <![CDATA[ ranking <= 5  AND  score >= 30  then 'http://i3b208.p.ssafy.io:8080/blog/tier/challenger.png' 
+         when ranking <= 10 AND score >= 25 then 'http://i3b208.p.ssafy.io:8080/blog/tier/master.png'
+         when  ranking <= 15 AND score >= 20 then 'http://i3b208.p.ssafy.io:8080/blog/tier/diamond.png'
+         when  ranking <= 20 AND score >= 15 then 'http://i3b208.p.ssafy.io:8080/blog/tier/platinum.png'
+         when  ranking <= 25 AND score >= 10 then 'http://i3b208.p.ssafy.io:8080/blog/tier/gold.png'
+         when ranking <= 30 AND score >= 5 then 'http://i3b208.p.ssafy.io:8080/blog/tier/silver.png'
+          ELSE 'http://i3b208.p.ssafy.io:8080/blog/tier/bronze.png' END ]]>
+		)AS postrating , result.*
+		FROM (SELECT (rank() over(ORDER BY score
+		DESC)) AS ranking , likecount -
+		dislikecount as score,
+		ifnull(tt1.kind,-1) AS kind , tt2.* FROM
+		(SELECT * FROM postlike WHERE
+		userno = #{userno}) AS tt1 RIGHT JOIN
+		(SELECT
+		ifnull(liketable.likecount, 0) AS likecount, temp3.* FROM
+		(SELECT
+		count(user.userno) AS likecount , postlike.postno
+		FROM user, postlike
+		WHERE user.userno = postlike.userno GROUP BY
+		postno, kind HAVING kind
+		=1) AS liketable
+		RIGHT JOIN (SELECT ifnull(disliketable.dislikecount,0)
+		AS dislikecount,
+		temp2.* FROM (SELECT count(user.userno) AS
+		dislikecount ,
+		postlike.postno,
+		postlike.kind FROM user, postlike WHERE
+		user.userno = postlike.userno
+		GROUP BY postno, kind HAVING kind =0) AS
+		disliketable
+		RIGHT JOIN (SELECT GROUP_CONCAT(tags.tag) AS tags, temp1.*
+		from tags right JOIN (SELECT * FROM postuser ) AS temp1
+		ON temp1.postno
+		= tags.postno GROUP BY postno) AS temp2
+		ON disliketable.postno =
+		temp2.postno) AS temp3
+		ON liketable.postno = temp3.postno ) AS tt2
+		on
+		tt1.postno = tt2.postno
+		ORDER BY score DESC) AS result) AS re2
+		WHERE
+		re1.userno = re2.userno
+		<if test="word != null">
+			AND (title LIKE concat('%',#{word},'%')
+			OR content LIKE
+			concat('%',#{word},'%'))
+		</if>
+		<if test="tags !=null and tags.length > 0">
+			AND
+			<foreach item="tag" index="index" collection="tags" open="("
+				separator="AND" close=")">
+				tags LIKE concat('%',#{tag},'%')
+			</foreach>
+		</if>
+		ORDER BY score DESC LIMIT #{limit}, 9
+	</select>
+
+
+	<select id="getPost"
+		resultType="com.web.blog.model.post.PostResponse">
+		SELECT ifnull(tt1.kind,-1) as kind , tt2.tags, tt2.userno, tt2.uid, tt2.profilename, tt2.postno, tt2.title, tt2.subtitle, tt2.content, DATE_FORMAT(create_date, '%Y-%m-%d') AS create_date , tt2.dislikecount, tt2.likecount FROM (SELECT *
+		FROM postlike WHERE postno = #{postno} AND userno = #{userno} ) as tt1
+		RIGHT JOIN
+		(SELECT GROUP_CONCAT(tags.tag) AS tags , temp3.* from tags
+		right JOIN (SELECT
+		temp2.* , ifnull(liketable.likecount,0) AS likecount
+		FROM (SELECT
+		postno, COUNT(*) AS likecount FROM postlike WHERE postno =
+		#{postno} GROUP BY kind HAVING kind = 1) AS liketable
+		RIGHT JOIN
+		(SELECT temp1.*, IFNULL(disliketable.dislikecount, 0) AS
+		dislikecount
+		FROM (SELECT user.userno,
+		user.uid,
+		ifnull(user.profilename,'http://i3b208.p.ssafy.io:8080/blog/profiles/noimage.jpg')
+		AS profilename, post.postno, post.title, post.subtitle,
+		post.content,
+		post.create_date FROM user, postreg, post WHERE
+		postreg.postno =
+		#{postno} AND postreg.postno = post.postno AND
+		postreg.userno =
+		user.userno ) AS temp1
+		left JOIN (SELECT postno, kind,
+		COUNT(*) AS
+		dislikecount FROM postlike WHERE postno = #{postno} GROUP
+		BY kind
+		HAVING kind = 0) AS disliketable
+		ON temp1.postno = disliketable.postno)
+		AS temp2
+		ON liketable.postno = temp2.postno) AS temp3
+		ON tags.postno =
+		temp3.postno) AS tt2
+		ON tt1.postno = tt2.postno
+	</select>
+
+
+	<select id="getLatestPostList"
+		resultType="com.web.blog.model.post.PostResponse">
+		SELECT liketable.likeusers, temp3.* FROM (SELECT
+		group_concat(user.uid) AS
+		likeuseruids, group_concat(user.userno) AS
+		likeusers , postlike.postno
+		FROM user, postlike WHERE user.userno =
+		postlike.userno GROUP BY
+		postno, kind HAVING kind =1) AS liketable
+		RIGHT JOIN (SELECT
+		disliketable.dislikeuseruids,
+		disliketable.dislikeusers,
+		temp2.* FROM
+		(SELECT group_concat(user.uid)
+		AS dislikeuseruids,
+		group_concat(user.userno) AS dislikeusers ,
+		postlike.postno,
+		postlike.kind FROM user, postlike WHERE user.userno =
+		postlike.userno
+		GROUP BY postno, kind HAVING kind =0) AS disliketable
+		RIGHT JOIN
+		(SELECT GROUP_CONCAT(tags.tag) AS tags, temp1.*
+		from tags
+		right JOIN
+		(SELECT * FROM postuser) AS temp1
+		ON temp1.postno =
+		tags.postno GROUP
+		BY postno) AS temp2
+		ON disliketable.postno =
+		temp2.postno) AS temp3
+		ON
+		liketable.postno = temp3.postno
+		ORDER BY
+		create_date desc
+		LIMIT #{limit} , 6
+
+	</select>
+	<select id="getLikePostList"
+		resultType="com.web.blog.model.post.PostResponse">
+		SELECT * FROM (SELECT re1.userrating, re2.* FROM (SELECT (case when  <![CDATA[  userrank <= 5 AND userscore >= 60 then
+   'http://i3b208.p.ssafy.io:8080/blog/tier/challenger.png'
+   when userrank <= 10 AND userscore >= 50 then
+   'http://i3b208.p.ssafy.io:8080/blog/tier/master.png'
+   when userrank <= 15 AND userscore >= 40 then
+   'http://i3b208.p.ssafy.io:8080/blog/tier/diamond.png'
+   when userrank <= 20 AND userscore >= 30 then
+   'http://i3b208.p.ssafy.io:8080/blog/tier/platinum.png'
+   when userrank <= 25 AND userscore >= 20 then
+   'http://i3b208.p.ssafy.io:8080/blog/tier/gold.png'
+   when userrank <= 30 AND userscore >= 10 then
+   'http://i3b208.p.ssafy.io:8080/blog/tier/silver.png'
+   ELSE 'http://i3b208.p.ssafy.io:8080/blog/tier/bronze.png' END]]>
+		) AS userrating , re1.userscore, re1.userno FROM
+		(SELECT (rank()
+		over(ORDER BY userscore DESC)) as userrank,
+		sum(tt3.likecount-tt3.dislikecount)
+		AS userscore, tt3.userno FROM
+		(SELECT likecount, temp3.* FROM (SELECT
+		count(user.userno) AS likecount
+		, postlike.postno
+		FROM user, postlike
+		WHERE user.userno =
+		postlike.userno GROUP BY
+		postno, kind HAVING kind
+		=1) AS liketable
+		RIGHT
+		JOIN (SELECT ifnull(disliketable.dislikecount,0)
+		AS dislikecount,
+		temp2.* FROM (SELECT count(user.userno) AS
+		dislikecount ,
+		postlike.postno,
+		postlike.kind FROM user, postlike WHERE
+		user.userno =
+		postlike.userno
+		GROUP BY postno, kind HAVING kind =0) AS
+		disliketable
+		RIGHT JOIN (SELECT user.userno, postreg.postno FROM user,
+		postreg WHERE
+		user.userno = postreg.userno ) AS temp2
+		ON
+		disliketable.postno =
+		temp2.postno) AS temp3
+		ON liketable.postno =
+		temp3.postno ) AS tt3
+		GROUP
+		BY userno) AS re1) AS re1,
+		(SELECT (case
+		when  <![CDATA[  ranking <= 5 AND score >= 30 then
+   'http://i3b208.p.ssafy.io:8080/blog/tier/challenger.png'
+   when ranking <= 10 AND score >= 25 then
+   'http://i3b208.p.ssafy.io:8080/blog/tier/master.png'
+   when ranking <= 15 AND score >= 20 then
+   'http://i3b208.p.ssafy.io:8080/blog/tier/diamond.png'
+   when ranking <= 20 AND score >= 15 then
+   'http://i3b208.p.ssafy.io:8080/blog/tier/platinum.png'
+   when ranking <= 25 AND score >= 10 then
+   'http://i3b208.p.ssafy.io:8080/blog/tier/gold.png'
+   when ranking <= 30 AND score >= 5 then
+   'http://i3b208.p.ssafy.io:8080/blog/tier/silver.png'
+   ELSE 'http://i3b208.p.ssafy.io:8080/blog/tier/bronze.png' END]]>
+		)AS postrating , result.*
+		FROM (SELECT (rank() over(ORDER BY score
+		DESC)) AS ranking , likecount -
+		dislikecount as score,
+		ifnull(tt1.kind,-1) AS kind , tt2.* FROM
+		(SELECT * FROM postlike WHERE
+		userno = #{userno}) AS tt1 RIGHT JOIN
+		(SELECT
+		ifnull(liketable.likecount, 0) AS likecount, temp3.* FROM
+		(SELECT
+		count(user.userno) AS likecount , postlike.postno
+		FROM user, postlike
+		WHERE user.userno = postlike.userno GROUP BY
+		postno, kind HAVING kind
+		=1) AS liketable
+		RIGHT JOIN (SELECT ifnull(disliketable.dislikecount,0)
+		AS dislikecount,
+		temp2.* FROM (SELECT count(user.userno) AS
+		dislikecount ,
+		postlike.postno,
+		postlike.kind FROM user, postlike WHERE
+		user.userno = postlike.userno
+		GROUP BY postno, kind HAVING kind =0) AS
+		disliketable
+		RIGHT JOIN (SELECT GROUP_CONCAT(tags.tag) AS tags, temp1.*
+		from tags right JOIN (SELECT * FROM postuser ) AS temp1
+		ON temp1.postno
+		= tags.postno GROUP BY postno) AS temp2
+		ON disliketable.postno =
+		temp2.postno) AS temp3
+		ON liketable.postno = temp3.postno ) AS tt2
+		on
+		tt1.postno = tt2.postno
+		ORDER BY score DESC) AS result) AS re2
+		WHERE
+		re1.userno = re2.userno) AS tt3
+		WHERE tt3.kind = 1
+		limit #{limit}, 9
+
+	</select>
+
+	<insert id="clickLike">
+		INSERT INTO postlike
+		VALUES(#{userno}, #{targetno},
+		#{kind})
+	</insert>
+
+	<insert id="deleteLike">
+		DELETE FROM postlike
+		WHERE userno = #{userno} AND
+		postno = #{postno}
+	</insert>
+
+
+	<insert id="createPost">
+		INSERT INTO postreg(userno, save) VALUES(#{userno}
+		,#{save});
+	</insert>
+	<insert id="insertTags">
+		INSERT INTO tags VALUES
+		<foreach collection="tags" item="tag" separator=",">
+			(
+			#{postno},
+			#{tag}
+			)
+		</foreach>
+
+	</insert>
+
+	<delete id="deleteTags">
+		DELETE FROM tags
+		where postno = #{postno}
+	</delete>
+
+	<select id="getPostNo" resultType="java.lang.Integer">
+		SELECT postno
+		FROM postreg
+		WHERE userno = #{userno}
+		ORDER BY postno desc
+		LIMIT 1;
+	</select>
+
+	<insert id="insertPost">
+		INSERT INTO post(postno, title,subtitle, content,
+		thumbnail)
+		VALUES(#{postno}, #{title}, #{subtitle}, #{content} ,
+		#{thumbnail})
+	</insert>
+
+
+	<delete id="deletePost">
+		DELETE FROM postreg
+		WHERE postno = #{postno}
+	</delete>
+	<update id="modifySave">
+		UPDATE postreg SET save = #{save}
+		WHERE postno =
+		#{postno}
+	</update>
+
+
+	<update id="modifyPost">
+		UPDATE post SET title = #{title} ,subtitle =
+		#{subtitle}, content = #{content}, thumbnail = #{thumbnail}
+		WHERE
+		postno = #{postno}
+	</update>
+
+	<update id="modifyLike">
+		UPDATE postlike SET kind = #{kind}
+		WHERE userno =
+		#{userno} and postno = #{targetno}
+	</update>
+
+	<insert id="reportPost">
+		INSERT INTO postreport(userno, postno, content)
+		VALUES(#{userno}, #{postno}, #{content})
+	</insert>
+
+	<select id="searchReport"
+		resultType="com.web.blog.model.post.reportPostVo">
+		SELECT * FROM (select postno, COUNT(*) AS reportcount from
+		postreport GROUP
+		BY postno ) AS tt1 , (SELECT reportno, user.userno,
+		user.uid,
+		post.postno, post.title, postreport.content
+		FROM postreport,
+		user , post
+		WHERE user.userno = postreport.userno AND post.postno =
+		postreport.postno)
+		AS tt2
+		WHERE tt1.postno = tt2.postno
+		ORDER BY
+		tt1.postno desc LIMIT #{limit},10
+	</select>
+
+</mapper>

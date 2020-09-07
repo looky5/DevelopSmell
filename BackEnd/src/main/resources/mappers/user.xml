@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.web.blog.dao.UserDao">
+
+
+	<select id="loginUser" resultType="com.web.blog.model.user.User">
+		select uid, userno, email, introduce,
+		ifnull(profilename,'http://i3b208.p.ssafy.io:8080/blog/images/profiles/noimage.jpg')
+		as profilename from user
+		where email = #{email} and password = #{password}
+	</select>
+
+	<select id="getUserByEmail"
+		resultType="com.web.blog.model.user.User">
+		select uid, userno, email, password, introduce,
+		salt,ifnull(profilename,'http://i3b208.p.ssafy.io:8080/blog/images/profiles/noimage.jpg')
+		as profilename from user
+		where email = #{email}
+	</select>
+
+	<select id="getUserbyUserNo"
+		resultType="com.web.blog.model.user.User">
+		select uid, userno, email, introduce, isadmin,
+		ifnull(profilename,'http://i3b208.p.ssafy.io:8080/blog/images/profiles/noimage.jpg')
+		as profilename from user
+		where userno = #{userno}
+	</select>
+	
+	<select id="getUserbyUid"
+		resultType="com.web.blog.model.user.User">
+		select uid, userno, email, introduce, isadmin,
+		ifnull(profilename,'http://i3b208.p.ssafy.io:8080/blog/images/profiles/noimage.jpg')
+		as profilename from user
+		where uid = #{uid}
+	</select>
+
+	<update id="updateUser"
+		parameterType="com.web.blog.model.user.User">
+		update user
+		set uid = #{uid}, password = #{password}, salt = #{salt}, introduce =
+		#{introduce} , profilename = #{profilename}
+		where userno = #{userno}
+	</update>
+
+	<insert id="joinUser">
+		insert into user(uid, email, password, salt, profilename)
+		values(#{uid}, #{email}, #{password}, #{salt}, 'http://i3b208.p.ssafy.io:8080/blog/images/profiles/noimage.jpg');
+	</insert>
+
+
+
+	<select id="infoUser" resultType="com.web.blog.model.user.User">
+		select userno, uid, email, introduce,
+		ifnull(profilename,'http://i3b208.p.ssafy.io:8080/blog/images/profiles/noimage.jpg')
+		as profilename from user
+		where userno = #{userno}
+	</select>
+
+	<delete id="deleteUser">
+		delete from user where userno = #{userno}
+	</delete>
+
+	<update id="insProfileUrl">
+		UPDATE user
+		set profilename = #{file}
+		where userno = #{userno}
+
+	</update>
+
+	<select id="getUsersRank"
+		resultType="com.web.blog.model.user.UserRank">
+		SELECT (case when <![CDATA[ userrank
+      <= 5 AND userscore >= 60 then
+      'http://i3b208.p.ssafy.io:8080/blog/tier/challenger.png'
+      when userrank <= 10 AND userscore >= 50 then
+      'http://i3b208.p.ssafy.io:8080/blog/tier/master.png'
+      when userrank <= 15 AND userscore >= 40 then
+      'http://i3b208.p.ssafy.io:8080/blog/tier/diamond.png'
+      when userrank <= 20 AND userscore >= 30 then
+      'http://i3b208.p.ssafy.io:8080/blog/tier/platinum.png'
+      when userrank <= 25 AND userscore >= 20 then
+      'http://i3b208.p.ssafy.io:8080/blog/tier/gold.png'
+      when userrank <= 30 AND userscore >= 10 then
+      'http://i3b208.p.ssafy.io:8080/blog/tier/silver.png'
+      ELSE 'http://i3b208.p.ssafy.io:8080/blog/tier/bronze.png' END]]>)
+		AS userrating, userrank,
+		re1.userscore, re1.userno, re1.uid, re1.profilename
+		FROM (SELECT (rank() over(ORDER BY userscore DESC, userno)) as userrank,
+		sum(tt3.likecount - tt3.dislikecount) AS userscore, tt3.userno,
+		tt3.uid, tt3.profilename FROM (SELECT ifnull(likecount,0) AS
+		likecount, temp3.* FROM (SELECT count(user.userno) AS likecount ,
+		postlike.postno
+		FROM user, postlike WHERE user.userno = postlike.userno
+		GROUP BY
+		postno, kind HAVING kind =1) AS liketable
+		RIGHT JOIN (SELECT
+		ifnull(disliketable.dislikecount,0) AS dislikecount,
+		temp2.* FROM
+		(SELECT count(user.userno) AS dislikecount ,
+		postlike.postno,
+		postlike.kind FROM user, postlike WHERE user.userno = postlike.userno
+		GROUP BY postno, kind HAVING kind =0) AS disliketable
+		RIGHT JOIN
+		(SELECT user.profilename, user.uid, user.userno, postreg.postno FROM
+		user LEFT JOIN postreg ON user.userno = postreg.userno ) AS temp2
+		ON
+		disliketable.postno = temp2.postno) AS temp3
+		ON liketable.postno =
+		temp3.postno ) AS tt3
+		GROUP BY userno) AS re1
+		LIMIT #{limit}, 5
+	</select>
+
+	<insert id="createAuthCode">
+		INSERT INTO emailauth(email, code) VALUES(#{email}, #{code})
+	</insert>
+	
+	<select id="getAuthcode" resultType="java.lang.String">
+		SELECT code FROM emailauth WHERE email = #{email}
+	</select>
+	
+	<delete id="deleteAuthCode">
+		DELETE FROM emailauth WHERE email = #{email}
+	</delete>
+	
+	<update id="UserPwChange">
+		UPDATE user
+		SET password = #{password}, salt = #{salt}
+		WHERE email = #{email}
+	</update>
+	
+</mapper>

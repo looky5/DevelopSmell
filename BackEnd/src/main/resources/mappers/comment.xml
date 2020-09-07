@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.web.blog.dao.CommentDao">
+
+	<select id="getCommentsByPostNo"
+		resultType="com.web.blog.model.comment.CommentResponse">
+		SELECT tt1.* , user.uid, ifnull(user.profilename,'http://i3b208.p.ssafy.io:8080/blog/profiles/noimage.jpg') as profilename FROM  user, (SELECT comment.commentno, comment.userno, comment.postno,
+		comment.reply, comment.reply_date, (case when likecount IS NULL then 0
+		ELSE likecount END) as likecount, (case when dislikecount IS NULL then
+		0 ELSE dislikecount end) as dislikecount, (case when mylike IS NULL
+		then -1 ELSE mylike end) AS kind
+		FROM comment LEFT JOIN (SELECT tmp4.commentno, likecount, dislikecount,
+		mylike.userno, mylike
+		FROM (SELECT * FROM (SELECT tmp1.commentno, (case when likecount IS null then 0 ELSE
+		likecount END) AS likecount, (case when dislikecount IS null then 0
+		ELSE dislikecount END) AS dislikecount
+		FROM (SELECT commentno, count(userno) AS likecount FROM commentlike GROUP
+		BY commentno, kind HAVING kind = 1) AS tmp1
+		left JOIN (SELECT commentno, count(userno) AS dislikecount FROM
+		commentlike GROUP BY commentno, kind HAVING kind = 0) AS tmp2
+		ON tmp1.commentno = tmp2.commentno
+		UNION
+		SELECT tmp2.commentno, (case when likecount IS null then 0 ELSE likecount
+		END) likecount, (case when dislikecount IS null then 0 ELSE
+		dislikecount END) AS dislikecount
+		FROM (SELECT commentno, count(userno) AS likecount FROM commentlike GROUP
+		BY commentno, kind HAVING kind = 1) AS tmp1
+		right JOIN (SELECT commentno, count(userno) AS dislikecount FROM
+		commentlike GROUP BY commentno, kind HAVING kind = 0) AS tmp2
+		ON tmp1.commentno = tmp2.commentno) AS tmp3) AS tmp4 LEFT JOIN (SELECT
+		commentno, userno, kind as mylike
+		FROM commentlike
+		GROUP BY commentno, userno
+		HAVING userno = #{userno}) AS mylike ON tmp4.commentno = mylike.commentno)
+		AS commentliketable ON comment.commentno = commentliketable.commentno
+		WHERE postno = #{postno}) AS tt1 
+		WHERE user.userno = tt1.userno
+	</select>
+
+	<insert id="insertComment">
+		INSERT INTO comment(userno, postno, reply,
+		reply_date) values(#{userno},
+		#{postno}, #{reply}, now())
+	</insert>
+
+
+
+	<insert id="clickLike">
+		INSERT INTO commentlike
+		VALUES(#{userno}, #{targetno},
+		#{kind})
+	</insert>
+
+	<delete id="deleteLike">
+		DELETE FROM commentlike
+		WHERE userno = #{userno} AND
+		commentno = #{commentno}
+	</delete>
+
+	<update id="modifyLike">
+		UPDATE commentlike SET kind = #{kind}
+		WHERE userno =
+		#{userno} and commentno = #{targetno}
+	</update>
+
+	<delete id="deleteComment">
+		DELETE FROM comment WHERE
+		commentno = #{commentno}
+	</delete>
+
+	<insert id="reportComment">
+		INSERT INTO commentreport(userno, commentno, content)
+		VALUES(#{userno}, #{commentno}, #{content})
+	</insert>
+	
+	<select id="searchReport" resultType="com.web.blog.model.comment.reportCommentVo">
+		SELECT * FROM (select commentno, COUNT(*) AS reportcount from commentreport GROUP BY commentno ) AS tt1 , (SELECT creportno, user.userno, user.uid, comment.commentno, comment.reply, comment.postno, commentreport.content
+        FROM commentreport, user , comment
+        WHERE user.userno = commentreport.userno AND comment.commentno = commentreport.commentno) AS tt2
+        WHERE tt1.commentno = tt2.commentno
+        ORDER BY tt1.commentno desc LIMIT #{limit},10
+	</select>
+
+</mapper>

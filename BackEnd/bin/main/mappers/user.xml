@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.web.blog.dao.UserDao">
+
+
+	<select id="loginUser" resultType="com.web.blog.model.user.User">
+        select uid, email from user
+        where email = #{email} and password = #{password}
+    </select>
+
+  
+   
+   <select id="getUserByEmail" resultType="com.web.blog.model.user.User" >
+      select * from user 
+      where email = #{email}
+   </select>
+   
+   <update id="updateUser"
+        parameterType="com.web.blog.model.user.User">
+        update user
+        set uid = #{uid}, password = #{password}
+        where email = #{email}
+    </update>
+    
+   <insert id="joinUser">
+   		insert into user(uid, email, password, salt) 
+   		values(#{uid}, #{email}, #{password}, #{salt});
+   </insert>
+   
+   
+   
+   <select id="infoUser" resultType="com.web.blog.model.user.User">
+        select uid, email from user
+        where email = #{email}
+    </select>
+   
+   <delete id="deleteUser">
+		delete from user where email = #{email}
+   </delete>
+   
+</mapper>

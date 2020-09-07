@@ -1,0 +1,12 @@
+{"properties": [
+  {
+    "name": "custom.path.upload-images",
+    "type": "java.lang.String",
+    "description": "A description for 'custom.path.upload-images'"
+  },
+  {
+    "name": "spring.mail.properties.mail.smtp.auth",
+    "type": "java.lang.String",
+    "description": "A description for 'spring.mail.properties.mail.smtp.auth'"
+  }
+]}

@@ -1,0 +1,44 @@
+server:
+  port: 8080
+  servlet:    context-path: /blog
+    
+    
+spring:
+  resources:    static-locations: classpath:/  
+
+  servlet:
+    multipart:
+      enabled: true
+      file-size-threshold: 1MB
+      max-file-size: 100MB
+      max-request-size: 100MB
+
+
+
+  datasource:
+    driver-class-name: org.mariadb.jdbc.Driver
+    #url: jdbc:mariadb://127.0.0.1:3306/ssafy
+    #username: root
+    #password: ssafy
+    
+    url: jdbc:mariadb://i3b208.p.ssafy.io:3306/ssafy
+    username: ssafy
+    password: ssafy
+  mail:
+       host: smtp.gmail.com
+       port: 587
+       username: sdfgcsdfg@gmail.com
+       password: qvsxdmcehmohvakc
+       protocol: smtp
+       tls: true
+       properties.mail.smtp:
+           auth: true
+           starttls.enable: true
+           ssl.trust: smtp.gmail.com
+
+custom:
+  path:
+    upload-images: '/home/ubuntu/images'  
+#mybatis:
+#  mapper-locations: mappers/*xml
+    

@@ -1,0 +1,25 @@
+server:
+  port: 8082
+  servlet:    context-path: /blog
+spring:
+  datasource:
+    driver-class-name: org.mariadb.jdbc.Driver
+    url: jdbc:mariadb://127.0.0.1:3306/ssafy
+    username: root
+    password: ssafy
+  mail:
+       host: smtp.gmail.com
+       port: 587
+       username: sdfgcsdfg@gmail.com
+       password: asdasd1@
+       protocol: smtp
+       tls: true
+       properties.mail.smtp:
+           auth: true
+           starttls.enable: true
+           ssl.trust: smtp.gmail.com
+
+  
+#mybatis:
+#  mapper-locations: mappers/*xml
+    
